@@ -1,23 +1,36 @@
-"""Task 1: fetch the USGS GeoJSON feed and turn it into a DataFrame."""
+"""Task 1: fetch and parse USGS earthquake data."""
+
+import requests
 import pandas as pd
 
-BASE = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary"
+
+def fetch_feed(feed="all_week"):
+    """Fetch a USGS earthquake GeoJSON feed."""
+    url = f"https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/{feed}.geojson"
+
+    response = requests.get(url, timeout=15)
+    response.raise_for_status()
+
+    return response.json()
 
 
-def fetch_feed(feed: str = "all_week") -> dict:
-    """GET {BASE}/{feed}.geojson and return the parsed dict.
+def geojson_to_df(payload):
+    """Convert USGS GeoJSON payload into a pandas DataFrame."""
 
-    Use a timeout and raise_for_status(). A misspelled feed name returns
-    HTTP 200 with a plain-text body, so raise a clear error if the body
-    is not valid JSON.
-    """
-    ...
+    rows = []
 
+    for feature in payload["features"]:
+        properties = feature["properties"]
+        coordinates = feature["geometry"]["coordinates"]
 
-def geojson_to_df(payload: dict) -> pd.DataFrame:
-    """One row per event.
+        row = {
+            "id": feature["id"],
+            **properties,
+            "lon": coordinates[0],
+            "lat": coordinates[1],
+            "depth_km": coordinates[2],
+        }
 
-    Columns: 'id' (top level of each feature), every key in 'properties',
-    plus 'lon', 'lat', 'depth_km' from geometry.coordinates = [lon, lat, depth].
-    """
-    ...
+        rows.append(row)
+
+    return pd.DataFrame(rows)
